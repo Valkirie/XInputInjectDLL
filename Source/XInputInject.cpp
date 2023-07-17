@@ -59,9 +59,6 @@ static XINPUTGETSTATE hookedXInputGetState = nullptr;
 
 std::ofstream outfile;
 
-XINPUT_STATE pOthersState;
-
-
 // wrapper for easier setting up hooks for MinHook
 template <typename T>
 inline MH_STATUS MH_CreateHookEx(LPVOID pTarget, LPVOID pDetour, T** ppOriginal)
@@ -150,26 +147,6 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 			if (MH_EnableHook(MH_ALL_HOOKS) == MH_OK)
 				MessageBox(0, "XInput hooked", "XINPUT", MB_OK);
 
-
-			/*
-			// Load the XInput library dynamically
-			HMODULE hXInput = LoadLibrary("xinput1_4.dll");
-			if (!hXInput) {
-				hXInput = LoadLibrary("xinput1_3.dll");
-			}
-			if (!hXInput) {
-				MessageBox(0, "Failed hXInput!", "XINPUT", MB_OK);
-				return FALSE;
-			}
-			MessageBox(0, "Loaded hXInput!", "XINPUT", MB_OK);
-
-			// Get the XInputGetState function address
-			XINPUTGETSTATE XInputGetState = (XINPUTGETSTATE)GetProcAddress(hXInput, "XInputGetState");
-			
-			if (!XInputGetState) {
-				return FALSE;
-			}
-			*/
 			break;
 		}
 
