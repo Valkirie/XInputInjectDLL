@@ -87,14 +87,14 @@ DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 	
 	switch (dwUserIndex) {
 		case 0: {
-			XINPUT_STATE p2state;
-			ZeroMemory(&p2state, sizeof(XINPUT_STATE));
+			XINPUT_STATE pState2;
+			ZeroMemory(&pState2, sizeof(XINPUT_STATE));
 
 			// get pState from controller 2
-			DWORD result = hookedXInputGetState(1, &p2state);
+			DWORD result = hookedXInputGetState(1, &pState2);
 			
-			pState->Gamepad = p2state.Gamepad;
-		break;
+			pState->Gamepad = pState2.Gamepad;
+			break;
 		}
 		default: {
 			XINPUT_STATE pStateBlank;
@@ -104,20 +104,6 @@ DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 			pState->Gamepad = pStateBlank.Gamepad;
 		}
 	}
-	//Any pState change
-
-	//Sample 1
-	//pState->Gamepad.sThumbRX = 0;
-	//pState->Gamepad.sThumbRY = 0;
-
-	
-	//pState change
-	//pState->Gamepad.sThumbRX = 0;
-	//pState->Gamepad.sThumbRY = 0;
-
-	//if (pState->Gamepad.bLeftTrigger > 200) {
-		//pState->Gamepad.wButtons = 0x1000;
-		//State->Gamepad.bLeftTrigger = 0;
 		
 	return toReturn;
 }
