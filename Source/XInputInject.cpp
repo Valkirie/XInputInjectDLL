@@ -117,30 +117,29 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 			if (MH_Initialize() == MH_OK)
 				MessageBox(0, "Initialized ok", "XINPUT", MB_OK);
 
-			//1.0
-			if (MH_CreateHookApiEx(L"XINPUT9_1_0", "XInputGetStateEx", &detourXInputGetState, &hookedXInputGetState) == MH_OK) //Ex! - Bulletstorm (2011)
-				MessageBox(0, "Detour XInputGetState 9_1_0", "XINPUT", MB_OK);
-
-			//1_1
+			//1_4
 			if (hookedXInputGetState == nullptr)
-				if (MH_CreateHookApiEx(L"XINPUT_1_1", "XInputGetState", &detourXInputGetState, &hookedXInputGetState) == MH_OK)
-					MessageBox(0, "Detour XInputGetState 1_1", "XINPUT", MB_OK);
-
-			//1_2
-			if (hookedXInputGetState == nullptr)
-				if (MH_CreateHookApiEx(L"XINPUT_1_2", "XInputGetState", &detourXInputGetState, &hookedXInputGetState) == MH_OK)
-					MessageBox(0, "Detour XInputGetState 1_2", "XINPUT", MB_OK);
-
+				if (MH_CreateHookApiEx(L"XINPUT1_4", "XInputGetState", &detourXInputGetState, &hookedXInputGetState) == MH_OK)
+					MessageBox(0, "Detour XInputGetState 1_4", "XINPUT", MB_OK);
 
 			//1_3
 			if (hookedXInputGetState == nullptr)
 				if (MH_CreateHookApiEx(L"XINPUT1_3", "XInputGetState", &detourXInputGetState, &hookedXInputGetState) == MH_OK)
 					MessageBox(0, "Detour XInputGetState 1_3", "XINPUT", MB_OK);
 
-			//1_4
+			//1_2
 			if (hookedXInputGetState == nullptr)
-				if (MH_CreateHookApiEx(L"XINPUT1_4", "XInputGetState", &detourXInputGetState, &hookedXInputGetState) == MH_OK)
-					MessageBox(0, "Detour XInputGetState 1_4", "XINPUT", MB_OK);
+				if (MH_CreateHookApiEx(L"XINPUT_1_2", "XInputGetState", &detourXInputGetState, &hookedXInputGetState) == MH_OK)
+					MessageBox(0, "Detour XInputGetState 1_2", "XINPUT", MB_OK);
+
+			//1_1
+			if (hookedXInputGetState == nullptr)
+				if (MH_CreateHookApiEx(L"XINPUT_1_1", "XInputGetState", &detourXInputGetState, &hookedXInputGetState) == MH_OK)
+					MessageBox(0, "Detour XInputGetState 1_1", "XINPUT", MB_OK);
+
+			//1.0
+			if (MH_CreateHookApiEx(L"XINPUT9_1_0", "XInputGetStateEx", &detourXInputGetState, &hookedXInputGetState) == MH_OK) //Ex! - Bulletstorm (2011)
+				MessageBox(0, "Detour XInputGetState 9_1_0", "XINPUT", MB_OK);
 
 
 			//if (MH_EnableHook(&detourXInputGetState) == MH_OK) //Not working
