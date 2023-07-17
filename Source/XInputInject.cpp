@@ -19,6 +19,19 @@ typedef DWORD(WINAPI* XINPUTGETSTATE)(DWORD, XINPUT_STATE*);
 static XINPUTSETSTATE hookedXInputSetState = nullptr;
 static XINPUTGETSTATE hookedXInputGetState = nullptr;
 
+// Define the XINPUT_STATE_EX structure
+typedef struct _XINPUT_STATE_EX {
+	DWORD dwPacketNumber;
+	XINPUT_GAMEPAD Gamepad;
+	WORD wButtonsEx;
+} XINPUT_STATE_EX, * PXINPUT_STATE_EX;
+
+// Define the XInputGetStateEx function pointer
+typedef DWORD(WINAPI* PFN_XInputGetStateEx)(DWORD dwUserIndex, XINPUT_STATE_EX* pState);
+
+HMODULE hModule;
+PFN_XInputGetStateEx pXInputGetStateEx;
+
 std::ofstream outfile;
 
 // wrapper for easier setting up hooks for MinHook
@@ -48,16 +61,18 @@ DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 			// get pState from controller 1...3
 			for (DWORD idx = 1; idx < XUSER_MAX_COUNT; idx++)
 			{
-				// Create a XINPUT_STATE structure to store the controller state
-				XINPUT_STATE pState2;
-				ZeroMemory(&pState2, sizeof(XINPUT_STATE));
-				toReturn = hookedXInputGetState(idx, &pState2);
+				// Create an XINPUT_STATE_EX structure to store the controller state
+				XINPUT_STATE_EX pState2;
+				ZeroMemory(&pState2, sizeof(XINPUT_STATE_EX));
+				// Get the state of the controller
+				toReturn = pXInputGetStateEx(idx, &pState2);
 
 				if (toReturn == ERROR_SUCCESS)
 				{
-					printf("GetState(%u), %u\n", idx, pState2.Gamepad.wButtons);
+					printf("GetState(%u), %u, %u\n", idx, pState2.Gamepad.wButtons, pState2.dwPacketNumber);
 
 					// copy inputs from controller
+					pState->dwPacketNumber = pState2.dwPacketNumber;
 					pState->Gamepad = pState2.Gamepad;
 					break;
 				}
@@ -130,6 +145,23 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
 	switch (ul_reason_for_call){
 		case DLL_PROCESS_ATTACH: {
+			// Get a handle to the xinput library
+			hModule = LoadLibrary("xinput1_3.dll");
+			if (hModule == NULL)
+			{
+				printf("Failed to load xinput library\n");
+				return FALSE;
+			}
+
+			// Get a pointer to the XInputGetStateEx function
+			pXInputGetStateEx = (PFN_XInputGetStateEx)GetProcAddress(hModule, (LPCSTR)100);
+			if (pXInputGetStateEx == NULL)
+			{
+				printf("Failed to get XInputGetStateEx function\n");
+				FreeLibrary(hModule);
+				return FALSE;
+			}
+
 			printf("Attached\n");
 
 			if (MH_Initialize() == MH_OK)
