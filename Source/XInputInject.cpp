@@ -1,11 +1,15 @@
 ﻿#include <Windows.h>
+//#include <Xinput.h>
 #include "MinHook.h"
+#include <fstream>
 
 #if defined _M_X64
 #pragma comment(lib, "libMinHook-x64-v141-md.lib")
 #elif defined _M_IX86
 #pragma comment(lib, "libMinHook-x86-v141-md.lib")
 #endif
+
+#pragma comment(lib, "xinput.lib")
 
 #define XINPUT_GAMEPAD_DPAD_UP          0x0001
 #define XINPUT_GAMEPAD_DPAD_DOWN        0x0002
@@ -53,6 +57,10 @@ typedef DWORD(WINAPI *XINPUTGETSTATE)(DWORD, XINPUT_STATE*);
 // Pointer for calling original
 static XINPUTGETSTATE hookedXInputGetState = nullptr;
 
+std::ofstream outfile;
+
+XINPUT_STATE pOthersState;
+
 
 // wrapper for easier setting up hooks for MinHook
 template <typename T>
@@ -73,10 +81,29 @@ DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 	//MessageBox(0, "XinputGetSate", "XINPUT", MB_OK);
 	
 	//ZeroMemory(pState, sizeof(XINPUT_STATE));
-	
+
 	// first call the original function
 	DWORD toReturn = hookedXInputGetState(dwUserIndex, pState);
 	
+	switch (dwUserIndex) {
+		case 0: {
+			XINPUT_STATE p2state;
+			ZeroMemory(&p2state, sizeof(XINPUT_STATE));
+
+			// get pState from controller 2
+			DWORD result = hookedXInputGetState(1, &p2state);
+			
+			pState->Gamepad = p2state.Gamepad;
+		break;
+		}
+		default: {
+			XINPUT_STATE pStateBlank;
+			ZeroMemory(&pStateBlank, sizeof(XINPUT_STATE));
+
+			// blank pState of other controllers except first controller
+			pState->Gamepad = pStateBlank.Gamepad;
+		}
+	}
 	//Any pState change
 
 	//Sample 1
@@ -91,7 +118,6 @@ DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 	//if (pState->Gamepad.bLeftTrigger > 200) {
 		//pState->Gamepad.wButtons = 0x1000;
 		//State->Gamepad.bLeftTrigger = 0;
-	}//
 		
 	return toReturn;
 }
@@ -122,6 +148,7 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 				if (MH_CreateHookApiEx(L"XINPUT_1_2", "XInputGetState", &detourXInputGetState, &hookedXInputGetState) == MH_OK)
 					MessageBox(0, "Detour XInputGetState 1_2", "XINPUT", MB_OK);
 
+
 			//1_3
 			if (hookedXInputGetState == nullptr)
 				if (MH_CreateHookApiEx(L"XINPUT1_3", "XInputGetState", &detourXInputGetState, &hookedXInputGetState) == MH_OK)
@@ -138,6 +165,25 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 				MessageBox(0, "XInput hooked", "XINPUT", MB_OK);
 
 
+			/*
+			// Load the XInput library dynamically
+			HMODULE hXInput = LoadLibrary("xinput1_4.dll");
+			if (!hXInput) {
+				hXInput = LoadLibrary("xinput1_3.dll");
+			}
+			if (!hXInput) {
+				MessageBox(0, "Failed hXInput!", "XINPUT", MB_OK);
+				return FALSE;
+			}
+			MessageBox(0, "Loaded hXInput!", "XINPUT", MB_OK);
+
+			// Get the XInputGetState function address
+			XINPUTGETSTATE XInputGetState = (XINPUTGETSTATE)GetProcAddress(hXInput, "XInputGetState");
+			
+			if (!XInputGetState) {
+				return FALSE;
+			}
+			*/
 			break;
 		}
 
