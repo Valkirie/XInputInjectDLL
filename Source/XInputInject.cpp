@@ -87,10 +87,16 @@ DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 			XINPUT_STATE pState2;
 			ZeroMemory(&pState2, sizeof(XINPUT_STATE));
 
-			// get pState from controller 2
-			DWORD result = hookedXInputGetState(1, &pState2);
-			
-			pState->Gamepad = pState2.Gamepad;
+			// get pState from controller 1...3
+			for (int idx = 1; idx < 4; idx++)
+			{
+				DWORD result = hookedXInputGetState(idx, &pState2);
+				if (result == ERROR_SUCCESS)
+				{
+					pState->Gamepad = pState2.Gamepad;
+					break;
+				}
+			}
 			break;
 		}
 		default: {
