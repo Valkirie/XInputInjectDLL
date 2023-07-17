@@ -65,16 +65,16 @@ DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 				XINPUT_STATE_EX pState2;
 				ZeroMemory(&pState2, sizeof(XINPUT_STATE_EX));
 				// Get the state of the controller
-				toReturn = pXInputGetStateEx(idx, &pState2);
+				DWORD toReturn = pXInputGetStateEx(idx, &pState2);
 
 				if (toReturn == ERROR_SUCCESS)
 				{
-					printf("GetState(%u), %u, %u\n", idx, pState2.Gamepad.wButtons, pState2.dwPacketNumber);
-
 					// copy inputs from controller
 					pState->dwPacketNumber = pState2.dwPacketNumber;
 					pState->Gamepad = pState2.Gamepad;
-					break;
+
+					printf("GetState(%u), %u, %u\n", idx, pState->Gamepad.wButtons, pState->dwPacketNumber);
+					return toReturn;
 				}
 				else
 				{
@@ -88,6 +88,7 @@ DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 		{
 			// blank pState of other controllers except first controller
 			ZeroMemory(pState, sizeof(XINPUT_STATE));
+			return ERROR_EMPTY;
 		}
 	}
 		
