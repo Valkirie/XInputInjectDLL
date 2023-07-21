@@ -1,2 +1,2 @@
-.\Injector.exe -w "The Witcher 3" -i ..\Debug\XInputInject.dll
+.\Injector.exe -w "XInput Test" -i ..\Debug\XInputInject.dll
 Read-Host

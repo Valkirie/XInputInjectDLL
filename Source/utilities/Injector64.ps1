@@ -1,2 +1,2 @@
-.\Injector64.exe -w "The Witcher 3" -i ..\x64\Debug\XInputInject.dll
+.\Injector64.exe -n "witcher3.exe" -i ..\x64\Release\XInputInject.dll
 Read-Host

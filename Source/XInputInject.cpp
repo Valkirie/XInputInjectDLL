@@ -14,10 +14,12 @@
 
 typedef DWORD(WINAPI* XINPUTSETSTATE)(DWORD, XINPUT_VIBRATION*);
 typedef DWORD(WINAPI* XINPUTGETSTATE)(DWORD, XINPUT_STATE*);
+typedef DWORD(WINAPI* XINPUTGETCAPABILITIES)(DWORD, DWORD, XINPUT_CAPABILITIES*);
 
 // Pointer for calling original
 static XINPUTSETSTATE hookedXInputSetState = nullptr;
 static XINPUTGETSTATE hookedXInputGetState = nullptr;
+static XINPUTGETCAPABILITIES hookedXInputGetCapabilities = nullptr;
 
 // Define the XINPUT_STATE_EX structure
 typedef struct _XINPUT_STATE_EX {
@@ -47,12 +49,19 @@ inline MH_STATUS MH_CreateHookApiEx(LPCWSTR pszModule, LPCSTR pszProcName, LPVOI
 	return MH_CreateHookApi(pszModule, pszProcName, pDetour, reinterpret_cast<LPVOID*>(ppOriginal));
 }
 
+DWORD WINAPI detourXInputGetStateEx(DWORD dwUserIndex, XINPUT_STATE_EX* pState)
+{
+	// first call the original function
+	DWORD toReturn = pXInputGetStateEx(dwUserIndex, pState);
+	printf("detourXInputGetStateEx %u\n", dwUserIndex);
+	return toReturn;
+}
+
 //Own GetState
 DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 {
 	// first call the original function
 	DWORD toReturn = hookedXInputGetState(dwUserIndex, pState);
-	printf("detourXInputGetState %u\n", dwUserIndex);
 	
 	switch (dwUserIndex)
 	{
@@ -61,24 +70,21 @@ DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 			// get pState from controller 1...3
 			for (DWORD idx = 1; idx < XUSER_MAX_COUNT; idx++)
 			{
-				// Create an XINPUT_STATE_EX structure to store the controller state
 				XINPUT_STATE_EX pState2;
 				ZeroMemory(&pState2, sizeof(XINPUT_STATE_EX));
-				// Get the state of the controller
-				DWORD toReturn = pXInputGetStateEx(idx, &pState2);
 
+				DWORD toReturn = pXInputGetStateEx(idx, &pState2);
 				if (toReturn == ERROR_SUCCESS)
 				{
-					// copy inputs from controller
 					pState->dwPacketNumber = pState2.dwPacketNumber;
 					pState->Gamepad = pState2.Gamepad;
 
-					printf("GetState(%u), %u, %u\n", idx, pState->Gamepad.wButtons, pState->dwPacketNumber);
-					return toReturn;
+					printf("Swapped GetState from: %u\n", idx);
+					break;
 				}
 				else
 				{
-					printf("GetState(%u) failed\n", idx);
+					// do something
 				}
 			}
 			break;
@@ -113,12 +119,12 @@ DWORD WINAPI detourXInputSetState(DWORD dwUserIndex, XINPUT_VIBRATION* pVibratio
 
 				if (toReturn == ERROR_SUCCESS)
 				{
-					printf("SetState(%u), L:%u, R:%u\n", idx, pVibration->wLeftMotorSpeed, pVibration->wRightMotorSpeed);
+					printf("Swapped SetState from: %u\n", idx);
 					break;
 				}
 				else
 				{
-					printf("SetState(%u) failed\n", idx);
+					// do something
 				}
 			}
 			break;
@@ -127,10 +133,54 @@ DWORD WINAPI detourXInputSetState(DWORD dwUserIndex, XINPUT_VIBRATION* pVibratio
 		default:
 		{
 			// blank pState of other controllers except first controller
-			pVibration->wLeftMotorSpeed = 0;
-			pVibration->wRightMotorSpeed = 0;
-
 			ZeroMemory(pVibration, sizeof(XINPUT_VIBRATION));
+		}
+	}
+
+	return toReturn;
+}
+
+DWORD WINAPI detourXInputGetCapabilities(DWORD dwUserIndex, DWORD flags, XINPUT_CAPABILITIES* capabilities)
+{
+	// first call the original function
+	DWORD toReturn = hookedXInputGetCapabilities(dwUserIndex, flags, capabilities);
+	printf("detourXInputSetState %u\n", dwUserIndex);
+
+	switch (dwUserIndex)
+	{
+		case 0:
+		{
+			// get pState from controller 1...3
+			for (DWORD idx = 1; idx < XUSER_MAX_COUNT; idx++)
+			{
+				XINPUT_CAPABILITIES pState2;
+				ZeroMemory(&pState2, sizeof(XINPUT_CAPABILITIES));
+
+				DWORD toReturn = hookedXInputGetCapabilities(idx, flags, &pState2);
+
+				if (toReturn == ERROR_SUCCESS)
+				{
+					capabilities->Flags = pState2.Flags;
+					capabilities->Gamepad = pState2.Gamepad;
+					capabilities->SubType = pState2.SubType;
+					capabilities->Type = pState2.Type;
+					capabilities->Vibration = pState2.Vibration;
+
+					printf("Swapped GetCapabilities from: %u\n", idx);
+					break;
+				}
+				else
+				{
+					// do something
+				}
+			}
+			break;
+		}
+
+		default:
+		{
+			// blank pState of other controllers except first controller
+			ZeroMemory(capabilities, sizeof(XINPUT_CAPABILITIES));
 		}
 	}
 
@@ -146,23 +196,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
 	switch (ul_reason_for_call){
 		case DLL_PROCESS_ATTACH: {
-			// Get a handle to the xinput library
-			hModule = LoadLibrary("xinput1_3.dll");
-			if (hModule == NULL)
-			{
-				printf("Failed to load xinput library\n");
-				return FALSE;
-			}
-
-			// Get a pointer to the XInputGetStateEx function
-			pXInputGetStateEx = (PFN_XInputGetStateEx)GetProcAddress(hModule, (LPCSTR)100);
-			if (pXInputGetStateEx == NULL)
-			{
-				printf("Failed to get XInputGetStateEx function\n");
-				FreeLibrary(hModule);
-				return FALSE;
-			}
-
 			printf("Attached\n");
 
 			if (MH_Initialize() == MH_OK)
@@ -171,7 +204,26 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 			//1_4
 			if (MH_CreateHookApiEx(L"XINPUT1_4", "XInputSetState", &detourXInputSetState, &hookedXInputSetState) == MH_OK)
 				if (MH_CreateHookApiEx(L"XINPUT1_4", "XInputGetState", &detourXInputGetState, &hookedXInputGetState) == MH_OK)
+				{
 					printf("Detour XInputGetState 1_4\n");
+
+					// Get a handle to the xinput library
+					hModule = LoadLibrary("xinput1_4.dll");
+					if (hModule != NULL)
+					{
+						// Get a pointer to the XInputGetStateEx function
+						pXInputGetStateEx = (PFN_XInputGetStateEx)GetProcAddress(hModule, (LPCSTR)100);
+						if (pXInputGetStateEx != NULL)
+						{
+							if (MH_CreateHookApiEx(L"XINPUT1_4", "XInputGetStateEx", &detourXInputGetStateEx, &pXInputGetStateEx) == MH_OK)
+								printf("Detour XInputGetStateEx 1_4\n");
+						}
+					}
+
+					//1_4
+					if (MH_CreateHookApiEx(L"XINPUT1_4", "XInputGetCapabilities", &detourXInputGetCapabilities, &hookedXInputGetCapabilities) == MH_OK)
+						printf("Detour XInputGetCapabilities 1_4\n");
+				}
 
 			//1_3
 			if (hookedXInputGetState == nullptr)
@@ -196,7 +248,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 				if (MH_CreateHookApiEx(L"XINPUT9_1_0", "XInputSetState", &detourXInputSetState, &hookedXInputSetState) == MH_OK)
 					if (MH_CreateHookApiEx(L"XINPUT9_1_0", "XInputGetStateEx", &detourXInputGetState, &hookedXInputGetState) == MH_OK)
 						printf("Detour XInputGetState 9_1_0\n");
-
 
 			//if (MH_EnableHook(&detourXInputGetState) == MH_OK) //Not working
 			if (MH_EnableHook(MH_ALL_HOOKS) == MH_OK)
